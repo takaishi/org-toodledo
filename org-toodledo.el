@@ -92,6 +92,12 @@
 ;; A --> 3
 ;; 
 ;; -- Defined what does org-toodledo-touch does in the documentation (stophlong)
+;; -- For Japanese User, How to use Japanese in task's title and task's note.
+;;
+;; Write to .emacs folow command.
+;; (setq w3m-coding-system 'utf-8)
+
+
 
 (require 'org)
 (unless (require 'w3m nil t)
@@ -574,7 +580,9 @@ been added/edited and (\"deleted\" . \"timestamp\") if tasks have been deleted."
                   repeat-string)
                  "\n")
        "")
-     (or (org-toodledo-task-note task) "") "\n"
+     (or (if (org-toodledo-task-note task)
+             (decode-coding-string (org-toodledo-task-note task) 'utf-8)
+           "")) "\n"
      ":PROPERTIES:\n"
      ":Toodledo-ID: " (org-toodledo-task-id task) "\n"
      ":Modified: " (org-toodledo-task-modified task) "\n"
