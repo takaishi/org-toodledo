@@ -19,14 +19,15 @@
 ;; MA 02111-1307, USA.
 
 ;; How to use:
-;; 1. Customize org-toodledo-userid and org-toodledo-password
+;; 1. Customize org-toodledo-userid nd org-toodledo-password
 ;; 2. Open a blank org file.
 ;; 3. Call org-toodledo-initialize-org
 ;; Call org-toodledo-update to bring in new/updated tasks (skips locally modified tasks newer than updated)
 ;; Call org-toodledo-sync-task to create or update the current task
 ;; Call org-toodledo-delete-current-task to delete the current task
 ;; Call org-toodledo-touch to mark the task as modified at the time it is touched
-;; All modified task is touched when a buffer is saved
+;; All modified task is touched when a buffer(in org-toodledo-files) is saved. You write ~/.emacs:
+;; (setq org-toodledo-files '("~/foo.org")
 ;;
 ;; Doesn't do lots of error trapping. Might be a good idea to version-control your Org file.
 ;;
