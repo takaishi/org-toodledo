@@ -26,6 +26,7 @@
 ;; Call org-toodledo-sync-task to create or update the current task
 ;; Call org-toodledo-delete-current-task to delete the current task
 ;; Call org-toodledo-touch to mark the task as modified at the time it is touched
+;; All modified task is touched when a buffer is saved
 ;;
 ;; Doesn't do lots of error trapping. Might be a good idea to version-control your Org file.
 ;;
@@ -436,6 +437,20 @@ Skip tasks with IDs in PROCESSED."
                          (not (member id processed))))
                 (save-excursion (org-toodledo-sync-task))))))))
 
+(defun org-toodledo-touch-all-modified-task ()
+  "Update All modified task.
+This function require global-highlight-changes-mode. "
+  (when (and (string= mode-name "Org") global-highlight-changes-mode)
+    (save-excursion
+      (goto-char (point-min))
+      (while (integerp (highlight-changes-next-change))
+        (org-toodledo-touch)))
+    (highlight-changes-remove-highlight (point-min) (point-max))))
+
+(add-hook 'before-save-hook 'org-toodledo-touch-all-modified-task)
+(add-hook 'org-mode-hook '(lambda () (global-highlight-changes-mode t)))
+
+
 (defun org-toodledo-touch ()
   "Update the current task's timestamp so that it's included in the next sync."
   (interactive)
@@ -749,18 +764,6 @@ Reload if FORCE is non-nil."
       t)))
 
 
-(defun org-toodledo-touch-all-modified-task ()
-  "Update All modified task.
-This function require global-highlight-changes-mode. "
-  (when (and (string= mode-name "Org") global-highlight-changes-mode)
-    (save-excursion
-      (goto-char (point-min))
-      (while (integerp (highlight-changes-next-change))
-        (org-toodledo-touch)))
-    (highlight-changes-remove-highlight (point-min) (point-max))))
-
-(add-hook 'before-save-hook 'org-toodledo-touch-all-modified-task)
-(add-hook 'org-mode-hook '(lambda () (global-highlight-changes-mode t)))
 
 
 (provide 'org-toodledo)
