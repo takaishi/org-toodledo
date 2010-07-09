@@ -647,6 +647,22 @@ been added/edited and (\"deleted\" . \"timestamp\") if tasks have been deleted."
        (org-end-of-subtree t t)
        (point)))))
 
+;; Advice for org-archive-subtree
+(defadvice org-archive-subtree (before ad-org-archive-subtree-before-hook (arg))
+  "Add hook."
+  (run-hooks 'org-archive-subtree-before-hook))
+
+(ad-activate-regexp "ad-org-archive-subtree-before-hook")
+
+;; Eval (org-toodledo-delete-current-task) at archive subtree.
+(add-hook 'org-archive-subtree-before-hook 
+          '(lambda ()
+             (org-back-to-heading t)
+             (let ((task (org-toodledo-parse-current-task)))
+               (and (> (length (org-toodledo-task-id task)) 0)
+                    (org-toodledo-success-p (org-toodledo-delete-task task))))))
+
+
   
 (defun org-toodledo-task-get-prop (task prop) (cdr (assoc prop task)))
 (defmacro org-toodledo-task-prop-defun (field)
