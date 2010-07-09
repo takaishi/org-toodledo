@@ -96,7 +96,7 @@
 ;; -- For Japanese User, How to use Japanese in task's title and task's note.
 ;;
 ;; Write to .emacs folow command.
-;; (setq w3m-coding-system 'utf-8)
+;; (setq w3m-default-coding-system 'utf-8)
 
 
 
