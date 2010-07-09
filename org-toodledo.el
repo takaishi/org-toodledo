@@ -297,7 +297,7 @@ Return a list of task alists."
       (let* (info
              (status (match-string-no-properties 2))
              (priority (match-string-no-properties 3))
-             (title (match-string-no-properties 4))
+             (title (decode-coding-string (match-string-no-properties 4) 'utf-8))
              (tags (match-string-no-properties 5))
              (id (org-entry-get (point) "Toodledo-ID"))
              (contexts (org-toodledo-get-contexts))
@@ -371,10 +371,18 @@ Return a list of task alists."
   ;; Retrieve all tasks
   ;; For each task in the current buffer
   ;;   Synchronize an existing task that has changed
-   (let ((regexp (concat "^\\*+[ \t]+\\(" org-todo-regexp "\\)")))
+  (interactive)
+  (let* ((toodledo-tasks (org-toodledo-get-tasks))
+         (server-info (org-toodledo-get-server-info))
+         (account-info (org-toodledo-get-account-info))
+         (changed (org-toodledo-account-changed account-info))
+         (last-deleted (string-to-number (or (org-entry-get-with-inheritance "Last-deleted") "0")))
+         (last-modified (string-to-number (or (org-entry-get-with-inheritance "Last-modified") "0")))
+         (last-update (string-to-number (or (org-entry-get-with-inheritance "Last-sync") "0")))
+         (regexp (concat "^\\*+[ \t]+\\(" org-todo-regexp "\\)")))
     (goto-char (point-min))
     (while (re-search-forward regexp nil t)
-      (org-toodledo-sync-task))))
+      (org-toodledo-sync-task toodledo-tasks))))
 
 (defun org-toodledo-update ()
   "Insert new tasks and update previous tasks."
@@ -524,7 +532,7 @@ been added/edited and (\"deleted\" . \"timestamp\") if tasks have been deleted."
         (add-to-list 'result (cons "deleted" last-deleted)))
     result))
   
-(defun org-toodledo-sync-task (&optional force)
+(defun org-toodledo-sync-task (&optional toodledo-tasks force)
   "Update my Toodledo for the current task."
   (interactive "P")
   (save-excursion
@@ -537,13 +545,33 @@ been added/edited and (\"deleted\" . \"timestamp\") if tasks have been deleted."
               (org-entry-put (point) "Sync"
                              (format "%d" (float-time (current-time)) 1000))))
         ;; Old task, update
-        (when (org-toodledo-success-p (org-toodledo-edit-task task))
-          (if (equal (org-toodledo-task-completed task) "1")
-              (org-entry-put (point) "Completed" "1")
-            (org-entry-delete (point) "Completed")
-            (org-entry-put (point) "Status" (org-toodledo-task-status task)))
-          (org-entry-put (point) "Sync"
-                         (format "%d" (float-time (current-time)) 1000)))))))
+        (let* ((t-task (org-toodledo-search-task (org-toodledo-task-id task) toodledo-tasks))
+               (t-task-modified (org-toodledo-get-task-modified t-task))
+               (task-modified (org-entry-get (point) "Modified")))
+          (cond ((> (string-to-number t-task-modified) (string-to-number task-modified))
+                 ;;toodledoのタスクが新しい場合
+                 (org-toodledo-update-task t-task))
+                 ;;"toodledoのタスクが新しい")
+                ((< (string-to-number t-task-modified) (string-to-number task-modified))
+                 ;;org-modeタスクが新しい場合
+                 (when (org-toodledo-success-p (org-toodledo-edit-task task))
+                   (if (equal (org-toodledo-task-completed task) "1")
+                       (org-entry-put (point) "Completed" "1")
+                     (org-entry-put (point) "Status" (org-toodledo-task-status task)))
+                   (org-entry-put (point) "Sync"
+                                  (format "%d" (float-time (current-time))
+                                          1000))))
+                ((= (string-to-number t-task-modified) (string-to-number task-modified))
+                 ;;modifiedが同じ時刻の場合
+                 "modifiedは同じ")))))))
+
+(defun org-toodledo-search-task (id tasks)
+  (find-if  '(lambda (task)
+               (string= id (cdr (assoc "id" task))))
+            tasks))
+
+(defun org-toodledo-get-task-modified (task)
+  (cdr (assoc "modified" task)))
 
 ;; (assert (equal (org-toodledo-format-date "2003-08-12") "<2003-08-12 Tue>"))
 (defun org-toodledo-format-date (date &optional repeat)
@@ -567,8 +595,9 @@ been added/edited and (\"deleted\" . \"timestamp\") if tasks have been deleted."
 ;; (org-toodledo-task-to-string task)
 (defun org-toodledo-task-to-string (task &optional level)
   "Return an Org-formatted version of TASK."
-  (let* ((repeat (string-to-number (org-toodledo-task-repeat task)))
-         (rep-advanced (org-toodledo-task-repeat-advanced task))
+  (let* ((repeat (if (org-toodledo-task-repeat task)
+                     (string-to-number (org-toodledo-task-repeat task))
+                   0))         (rep-advanced (org-toodledo-task-repeat-advanced task))
          (repeat-string (org-toodledo-repeat-to-string repeat rep-advanced))
          (priority (org-toodledo-task-priority task)))
     (concat
@@ -580,7 +609,7 @@ been added/edited and (\"deleted\" . \"timestamp\") if tasks have been deleted."
       ((equal priority "1") "") 
       ((equal priority "2") "[#B] ") 
       ((equal priority "3") "[#A] "))
-     (org-toodledo-task-title task)
+     (decode-coding-string (org-toodledo-task-title task) 'utf-8)
      (if (org-toodledo-task-context task)
          (concat " :@" (org-toodledo-task-context task) ":") 
        "")
@@ -763,7 +792,8 @@ Reload if FORCE is non-nil."
         nil
       ;; Not locally modified? replace
       ;; Figure out what our level is
-      (delete-region (org-back-to-heading)
+      (delete-region (progn (org-back-to-heading)
+                            (point))
                      (progn (goto-char (match-end 0))
                             (if (re-search-forward org-complex-heading-regexp nil t)
                                 (goto-char (match-beginning 0))
