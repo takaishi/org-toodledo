@@ -740,4 +740,19 @@ Reload if FORCE is non-nil."
       (insert (org-toodledo-task-to-string task level))
       t)))
 
+
+(defun org-toodledo-touch-all-modified-task ()
+  "Update All modified task.
+This function require global-highlight-changes-mode. "
+  (when (and (string= mode-name "Org") global-highlight-changes-mode)
+    (save-excursion
+      (goto-char (point-min))
+      (while (integerp (highlight-changes-next-change))
+        (org-toodledo-touch)))
+    (highlight-changes-remove-highlight (point-min) (point-max))))
+
+(add-hook 'before-save-hook 'org-toodledo-touch-all-modified-task)
+(add-hook 'org-mode-hook '(lambda () (global-highlight-changes-mode t)))
+
+
 (provide 'org-toodledo)
