@@ -115,6 +115,11 @@
   :group 'org-toodledo
   :type 'string)
 
+(defcustom org-toodledo-files '("")
+  "Files for org-toodledo-touch-all-modified-task." 
+  :group 'org-toodledo
+  :type 'sexp)
+
 (defvar org-toodledo-token-expiry nil "Expiry time for authentication token.")
 (defvar org-toodledo-token nil "Authentication token.")
 (defvar org-toodledo-key nil "Authentication key.")
@@ -438,9 +443,11 @@ Skip tasks with IDs in PROCESSED."
                 (save-excursion (org-toodledo-sync-task))))))))
 
 (defun org-toodledo-touch-all-modified-task ()
-  "Update All modified task.
+  "Update All modified task in org-toodledo-files.
 This function require global-highlight-changes-mode. "
-  (when (and (string= mode-name "Org") global-highlight-changes-mode)
+  (when (and (string= mode-name "Org")
+             global-highlight-changes-mode
+             (member (buffer-file-name) (mapcar 'expand-file-name org-toodledo-files)))
     (save-excursion
       (goto-char (point-min))
       (while (integerp (highlight-changes-next-change))
